@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>π Clicker</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a14;
+    --surface: #0a1628;
+    --pi-gold: #f0c040;
+    --pi-glow: #ffd700;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --text: #c8d8f0;
+    --muted: #4a6080;
+    --border: #1a3050;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Starfield background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(240,192,64,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 10%, rgba(0,212,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 80%, rgba(240,192,64,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 10% 60%, rgba(0,212,255,0.2) 0%, transparent 100%),
+      radial-gradient(2px 2px at 90% 50%, rgba(240,192,64,0.15) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,22,40,0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.4rem;
+    color: var(--pi-gold);
+    text-shadow: 0 0 20px rgba(240,192,64,0.6);
+    letter-spacing: 4px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .header-stats {
+    display: flex;
+    gap: 32px;
+  }
+
+  .stat-box {
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    color: var(--pi-gold);
+    text-shadow: 0 0 10px rgba(240,192,64,0.5);
+  }
+
+  #hi-score-value { color: var(--accent); text-shadow: 0 0 10px rgba(0,212,255,0.5); }
+
+  /* Main layout */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 0;
+    height: calc(100vh - 65px);
+  }
+
+  /* Click arena */
+  .arena {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow: hidden;
+  }
+
+  /* Pi digits floating field */
+  #digits-field {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .floating-digit {
+    position: absolute;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    color: var(--pi-gold);
+    opacity: 0;
+    pointer-events: none;
+    animation: floatUp 3s ease-out forwards;
+    text-shadow: 0 0 8px rgba(240,192,64,0.8);
+    user-select: none;
+  }
+
+  @keyframes floatUp {
+    0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+    15%  { opacity: 1; transform: translateY(-20px) scale(1); }
+    70%  { opacity: 0.8; }
+    100% { opacity: 0; transform: translateY(-120px) scale(0.7); }
+  }
+
+  .click-fx {
+    position: absolute;
+    pointer-events: none;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    color: var(--accent2);
+    text-shadow: 0 0 15px var(--accent2);
+    animation: clickPop 0.7s ease-out forwards;
+    font-size: 1.2rem;
+    z-index: 100;
+  }
+
+  @keyframes clickPop {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(1.5); }
+  }
+
+  /* Central Pi button */
+  .pi-btn-wrap {
+    position: relative;
+    z-index: 10;
+  }
+
+  .pi-orbit {
+    position: absolute;
+    inset: -30px;
+    border-radius: 50%;
+    border: 1px solid rgba(240,192,64,0.15);
+    animation: orbit 8s linear infinite;
+  }
+
+  .pi-orbit::after {
+    content: '•';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--pi-gold);
+    font-size: 10px;
+    text-shadow: 0 0 8px var(--pi-gold);
+  }
+
+  .pi-orbit-2 {
+    position: absolute;
+    inset: -55px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,212,255,0.1);
+    animation: orbit 14s linear infinite reverse;
+  }
+
+  .pi-orbit-2::after {
+    content: '◆';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--accent);
+    font-size: 8px;
+    text-shadow: 0 0 8px var(--accent);
+  }
+
+  @keyframes orbit { to { transform: rotate(360deg); } }
+
+  #pi-button {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%,
+      rgba(240,192,64,0.25) 0%,
+      rgba(20,40,70,0.95) 60%,
+      rgba(10,22,40,1) 100%);
+    border: 2px solid rgba(240,192,64,0.5);
+    box-shadow:
+      0 0 30px rgba(240,192,64,0.2),
+      0 0 60px rgba(240,192,64,0.08),
+      inset 0 0 30px rgba(240,192,64,0.05);
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 5rem;
+    font-weight: 900;
+    color: var(--pi-gold);
+    text-shadow:
+      0 0 20px rgba(240,192,64,0.9),
+      0 0 40px rgba(240,192,64,0.5);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #pi-button:hover {
+    box-shadow:
+      0 0 50px rgba(240,192,64,0.4),
+      0 0 80px rgba(240,192,64,0.15),
+      inset 0 0 40px rgba(240,192,64,0.1);
+    border-color: rgba(240,192,64,0.8);
+  }
+
+  #pi-button:active, #pi-button.clicked {
+    transform: scale(0.92);
+    box-shadow:
+      0 0 20px rgba(240,192,64,0.3),
+      inset 0 0 20px rgba(240,192,64,0.15);
+  }
+
+  .click-hint {
+    margin-top: 24px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Pi digits scroll panel */
+  .panel {
+    border-left: 1px solid var(--border);
+    background: rgba(10,22,40,0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-header::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  #pi-display {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.95rem;
+    line-height: 2;
+    word-break: break-all;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  #pi-display::-webkit-scrollbar { width: 4px; }
+  #pi-display::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .revealed { color: var(--pi-gold); }
+  .cursor-blink {
+    display: inline-block;
+    width: 8px;
+    height: 1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: blink 0.8s step-end infinite;
+    margin-left: 2px;
+  }
+
+  /* Milestone flash */
+  .milestone-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: var(--surface);
+    border: 1px solid var(--pi-gold);
+    box-shadow: 0 0 60px rgba(240,192,64,0.4);
+    padding: 20px 40px;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    color: var(--pi-gold);
+    text-align: center;
+    z-index: 1000;
+    pointer-events: none;
+    text-shadow: 0 0 20px rgba(240,192,64,0.8);
+  }
+
+  .milestone-toast.show {
+    animation: toastPop 2s ease forwards;
+  }
+
+  @keyframes toastPop {
+    0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    15%  { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    25%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    75%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+  }
+
+  /* Multiplier bar */
+  .multiplier-row {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  .mult-bar-bg {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .mult-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--pi-gold));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .mult-label {
+    color: var(--accent2);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+  }
+
+  /* CPS display */
+  .cps-display {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  .cps-display span {
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  /* New badge */
+  .new-badge {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,212,255,0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    padding: 6px 16px;
+    border-radius: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 50;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">π<span>CLICKER</span></div>
+    <div class="header-stats">
+      <div class="stat-box">
+        <div class="stat-label">Digits Revealed</div>
+        <div class="stat-value" id="count-value">1</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Hi Score</div>
+        <div class="stat-value" id="hi-score-value">1</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Clicks</div>
+        <div class="stat-value" id="clicks-value">0</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="arena">
+      <div id="digits-field"></div>
+
+      <div class="pi-btn-wrap">
+        <div class="pi-orbit"></div>
+        <div class="pi-orbit-2"></div>
+        <button id="pi-button">π</button>
+      </div>
+
+      <div class="click-hint">[ click to reveal π ]</div>
+
+      <div class="cps-display">
+        RATE: <span id="cps-display">0</span> digits/sec
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">π digits stream</div>
+      <div id="pi-display">
+        <span class="revealed" id="revealed-text">3.</span><span class="cursor-blink"></span>
+      </div>
+      <div class="multiplier-row">
+        <span>NEXT MILESTONE</span>
+        <div class="mult-bar-bg"><div class="mult-bar-fill" id="milestone-bar" style="width:0%"></div></div>
+        <span class="mult-label" id="milestone-label">×10</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="milestone-toast" id="milestone-toast"></div>
+
+<script>
+// 1000 digits of pi (after decimal)
+const PI_DIGITS = "14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196442881097566593344612847564823378678316527120190914564856692346034861045432664821339360726024914127372458700660631558817488152092096282925409171536436789259036001133053054882046652138414695194151160943305727036575959195309218611738193261179310511854807446237996274956735188575272489122793818301194912983367336244065664308602139494639522473719070217986094370277053921717629317675238467481846766940513200056812714526356082778577134275778960917363717872146844090122495343014654958537105079227968925892354201995611212902196086403441815981362977477130996051870721134999999837297804995105973173281609631859502445945534690830264252230825334468503526193118817101000313783875288658753320838142061717766914730359825349042875546873115956286388235378759375195778185778053217122680661300192787661119590921642019893809525720106548586327886593615338182796823030195203530185296899577362259941389124972177528347913151557485724245415069595082953311686172785588907509838175463746493931925506040092770167113900984882401285836160356370766010471018194295559619894676783744944825537977472684710404753464620804668425906949129331367702898915210475216205696602405803815019351125338243003558764024749647326391419927260426992279678235478163600934172953189463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865832785571342757789609173637178721468440901224953430146549585371050792279689258923542019956112129021960864034418159813629774771309960518707211349999998372978049951059731732816096318595024459455346908302642522308253344685035261931188171010003137838752886587533208381420617177669147303598253490428755468731159562863882353787593751957781857780532171226806613001927876611195909216420198938095257201065485863278865936153381827968230301952035301852968995773622599413891249721775283479131515574857242454150695950829533116861727855889075098381754637464939319255060400927701671139009848824012858361603563707660104710181942955596198946767837449448255379774726847104047534646208046684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199272604269922796782354781636009341729531894063952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865832785571342757789609173637178721468440901224953430146549585371050792279689258923542019956112129021960864034418159813629774771309960518707211349999998372978049951059731732816096318595024459455346908302642522308253344685035261931188171010003137838752886587533208381420617177669147303598253490428755468731159562863882353787593751957781857780532171226806613001927876611195909216420198938095257201065485863278865936153381827968230301952035301852968995773622599413891249721775283479131515574857242454150695950829533116861727855889075098381754637464939319255060400927701671139009848824012858361603563707660104710181942955596198946767837449448255379774726847104047534646208046684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199272604269922796782354781636009341729531894063952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865832785571342757789609173637178721468440901224953430146549585371050792279689258923542019956112129021960864034418159813629774771309960518707211349999998";
+
+let revealed = 1; // we start with "3."
+let totalClicks = 0;
+let hiScore = 1;
+let clickTimes = [];
+let cps = 0;
+
+// Load hi score from sessionStorage (in-memory equivalent via variable — no localStorage per rules)
+// We'll keep hi score in JS only
+
+const countEl    = document.getElementById('count-value');
+const hiScoreEl  = document.getElementById('hi-score-value');
+const clicksEl   = document.getElementById('clicks-value');
+const cpsEl      = document.getElementById('cps-display');
+const revealedEl = document.getElementById('revealed-text');
+const piBtn      = document.getElementById('pi-button');
+const digitsField= document.getElementById('digits-field');
+const milestoneBar = document.getElementById('milestone-bar');
+const milestoneLabel = document.getElementById('milestone-label');
+const toastEl    = document.getElementById('milestone-toast');
+
+const MILESTONES = [10, 25, 50, 100, 200, 314, 500, 1000];
+
+function getMilestone(n) {
+  for (let m of MILESTONES) if (n < m) return m;
+  return Math.ceil(n / 100) * 100 + 100;
+}
+
+function updateDisplay() {
+  countEl.textContent = revealed;
+  clicksEl.textContent = totalClicks;
+  if (revealed > hiScore) {
+    hiScore = revealed;
+    hiScoreEl.textContent = hiScore;
+    hiScoreEl.style.animation = 'none';
+    requestAnimationFrame(() => hiScoreEl.style.animation = '');
+  }
+
+  // Build pi string: "3." + digits
+  const displayStr = '3.' + PI_DIGITS.slice(0, Math.max(0, revealed - 1));
+  revealedEl.textContent = displayStr;
+
+  // Milestone bar
+  const prev = getMilestone(revealed - 1);
+  const next = getMilestone(revealed);
+  const prevMark = revealed <= MILESTONES[0] ? 1 : prev;
+  const pct = Math.min(100, ((revealed - prevMark) / (next - prevMark)) * 100);
+  milestoneBar.style.width = pct + '%';
+  milestoneLabel.textContent = '×' + next;
+
+  // Auto-scroll panel
+  const panel = document.getElementById('pi-display');
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function spawnFloater(x, y, digit) {
+  const el = document.createElement('div');
+  el.className = 'floating-digit';
+  el.textContent = digit;
+  const size = 0.8 + Math.random() * 1.2;
+  el.style.fontSize = size + 'rem';
+  el.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
+  el.style.top  = (y - 20) + 'px';
+  digitsField.appendChild(el);
+  setTimeout(() => el.remove(), 3100);
+}
+
+function spawnClickFX(x, y, count) {
+  const el = document.createElement('div');
+  el.className = 'click-fx';
+  el.textContent = '+' + count;
+  el.style.left = (x - 20) + 'px';
+  el.style.top  = (y - 30) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+function checkMilestone(before, after) {
+  for (let m of MILESTONES) {
+    if (before < m && after >= m) {
+      showToast('🎉 ' + m + ' DIGITS!');
+    }
+  }
+}
+
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.remove('show');
+  void toastEl.offsetWidth;
+  toastEl.classList.add('show');
+}
+
+function updateCPS() {
+  const now = Date.now();
+  clickTimes = clickTimes.filter(t => now - t < 1000);
+  cps = clickTimes.length;
+  cpsEl.textContent = cps;
+}
+
+piBtn.addEventListener('click', function(e) {
+  const before = revealed;
+
+  // Clicks per second bonus
+  const bonus = cps >= 8 ? 3 : cps >= 4 ? 2 : 1;
+  const add = Math.min(bonus, PI_DIGITS.length - (revealed - 1));
+  if (add <= 0) { showToast('ALL π REVEALED! 🌌'); return; }
+
+  revealed += add;
+  totalClicks++;
+  clickTimes.push(Date.now());
+
+  // Spawn floaters for each new digit
+  const rect = piBtn.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+  for (let i = 0; i < add; i++) {
+    const d = PI_DIGITS[revealed - 2 - i] || '?';
+    spawnFloater(
+      cx + (Math.random()-0.5)*80,
+      cy + (Math.random()-0.5)*60,
+      d
+    );
+  }
+  spawnClickFX(e.clientX, e.clientY, '+' + add);
+
+  // Click animation
+  piBtn.classList.add('clicked');
+  setTimeout(() => piBtn.classList.remove('clicked'), 80);
+
+  checkMilestone(before, revealed);
+  updateDisplay();
+  updateCPS();
+});
+
+// CPS ticker
+setInterval(updateCPS, 200);
+
+// Initial render
+updateDisplay();
+</script>
+</body>
+</html>
